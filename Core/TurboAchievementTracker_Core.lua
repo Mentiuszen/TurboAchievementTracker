@@ -272,6 +272,13 @@ function TAT:RebuildCriteriaLookup(force)
         criteria = criteriaCount
     }
     
+    -- If we found achievements, but the number of criteria is suspiciously small,
+    -- it means the achievement criteria strings haven't loaded from the server yet.
+    if scannedAchievementsCount > 100 and criteriaCount < 200 then
+        TAT.criteriaLookupBuilt = false
+        return false
+    end
+    
     TAT.criteriaLookupBuilt = true
     return true
 end
@@ -289,7 +296,25 @@ function TAT:RunScan(force)
     end
     
     -- Rebuild criteria lookup of incomplete achievements if forced or not built yet
-    TAT:RebuildCriteriaLookup(force)
+    local success = TAT:RebuildCriteriaLookup(force)
+    if not success then
+        if not TAT.achRetryCount then TAT.achRetryCount = 0 end
+        if TAT.achRetryCount < 8 then
+            TAT.achRetryCount = TAT.achRetryCount + 1
+            if TAT.achRetryTimer then
+                TAT.achRetryTimer:Cancel()
+            end
+            TAT.achRetryTimer = C_Timer.NewTimer(2.0, function()
+                TAT:RunScan()
+            end)
+        end
+        return
+    else
+        TAT.achRetryCount = 0
+        if hasEnteredWorld then
+            TAT.initialScanDone = true
+        end
+    end
 
     wipe(TAT.scannedNeededQuests)
     
@@ -487,23 +512,26 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         hasEnteredWorld = true
         if not TAT.initialScanDone then
-            TAT:RunScan()
-            if TAT.criteriaLookupBuilt then
-                TAT.initialScanDone = true
+            if TAT.loginTimer then
+                TAT.loginTimer:Cancel()
             end
+            TAT.loginTimer = C_Timer.NewTimer(1.5, function()
+                TAT:RunScan()
+            end)
         end
     elseif event == "RECEIVED_ACHIEVEMENT_LIST" then
         if not TAT.initialScanDone then
-            -- Cancel any pending achievement retry timers and scan immediately
+            -- Cancel any pending achievement retry timers
             if TAT.achRetryTimer then
                 TAT.achRetryTimer:Cancel()
                 TAT.achRetryTimer = nil
             end
-            -- Force a rebuild of the achievements database now that achievements are loaded
-            TAT:RunScan(true)
-            if TAT.criteriaLookupBuilt then
-                TAT.initialScanDone = true
+            if TAT.loginTimer then
+                TAT.loginTimer:Cancel()
             end
+            TAT.loginTimer = C_Timer.NewTimer(1.5, function()
+                TAT:RunScan(true)
+            end)
         end
     end
 end)
