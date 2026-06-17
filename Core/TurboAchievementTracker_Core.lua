@@ -256,8 +256,8 @@ function TAT:RebuildCriteriaLookup(force)
         end
     end
     
-    -- If no achievements were successfully scanned, the database is not loaded yet
-    if scannedAchievementsCount == 0 then
+    -- If no achievements are loaded in the game database yet, it is not ready
+    if totalAchievementsInGame == 0 then
         TAT.lastScanStats = { achievements = 0, criteria = 0 }
         return false
     end
@@ -418,7 +418,7 @@ function TAT:RunScan(force)
     end
 
     -- Print reminder on the first successful scan of the session (after player fully enters world)
-    if hasEnteredWorld and TAT.db.showLoginReminder and not hasPrintedReminder then
+    if hasEnteredWorld and TAT.db.showLoginReminder and not hasPrintedReminder and TAT.criteriaLookupBuilt then
         hasPrintedReminder = true
         local filteredQuests = TAT:GetFilteredQuests()
         local neededCount = #filteredQuests
@@ -487,18 +487,23 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         hasEnteredWorld = true
         if not TAT.initialScanDone then
-            TAT.initialScanDone = true
             TAT:RunScan()
+            if TAT.criteriaLookupBuilt then
+                TAT.initialScanDone = true
+            end
         end
     elseif event == "RECEIVED_ACHIEVEMENT_LIST" then
         if not TAT.initialScanDone then
-            TAT.initialScanDone = true
             -- Cancel any pending achievement retry timers and scan immediately
             if TAT.achRetryTimer then
                 TAT.achRetryTimer:Cancel()
                 TAT.achRetryTimer = nil
             end
-            TAT:RunScan()
+            -- Force a rebuild of the achievements database now that achievements are loaded
+            TAT:RunScan(true)
+            if TAT.criteriaLookupBuilt then
+                TAT.initialScanDone = true
+            end
         end
     end
 end)
