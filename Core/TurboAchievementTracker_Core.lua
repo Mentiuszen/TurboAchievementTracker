@@ -433,6 +433,7 @@ function TAT:RunScan(force)
                                     achievementID = critInfo.achievementID,
                                     achievementName = critInfo.achievementName,
                                     criteriaString = critInfo.criteriaString,
+                                    criteriaIndex = critInfo.criteriaIndex,
                                     isPetBattle = finalIsPetBattle,
                                     isPvP = finalIsPvP,
                                     isProfession = finalIsProfession,

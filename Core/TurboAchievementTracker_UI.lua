@@ -156,7 +156,6 @@ local function UpdateAchievementsPage()
         table.insert(achievementsMap[q.achievementID].quests, q)
     end
     
-    -- Calculate completed criteria count and total criteria count for sorting
     for _, ach in ipairs(progressableList) do
         local numCriteria = GetAchievementNumCriteria(ach.id)
         local completedCount = 0
@@ -240,9 +239,20 @@ local function UpdateAchievementsPage()
             qTitle:SetPoint("TOPLEFT", 8, -5)
             qTitle:SetText(string.format("%s (%s — %s)", q.title, q.zoneName, q.expansion or "Other"))
             
+            local quantity, reqQuantity
+            if q.criteriaIndex then
+                local _, _, _, qQuantity, qReqQuantity = GetAchievementCriteriaInfo(q.achievementID, q.criteriaIndex)
+                quantity = qQuantity
+                reqQuantity = qReqQuantity
+            end
+            
+            local critText = q.criteriaString
+            if reqQuantity and reqQuantity > 1 then
+                critText = string.format("%s (%d/%d)", q.criteriaString, quantity or 0, reqQuantity)
+            end
             local qCriteria = subRow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
             qCriteria:SetPoint("BOTTOMLEFT", 8, 5)
-            qCriteria:SetText(string.format("|cff888888Needs criteria:|r |cff00ff00%s|r", q.criteriaString))
+            qCriteria:SetText(string.format("|cff888888Needs criteria:|r |cff00ff00%s|r", critText))
             
             local trackBtn = mQoL_Styles.CreateCustomButton(subRow, "Track", 75, 22)
             trackBtn:SetScript("OnClick", function()
