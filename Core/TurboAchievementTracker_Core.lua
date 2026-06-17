@@ -9,13 +9,80 @@ local eventFrame = CreateFrame("Frame")
 
 -- Parent Map IDs mapped to Expansion Names
 local parentToExpansion = {
-    [619] = "Legion", [903] = "Legion",
-    [875] = "BfA", [876] = "BfA",
-    [1550] = "Shadowlands",
-    [1978] = "Dragonflight",
-    [2274] = "The War Within",
-    [2393] = "Midnight", [2395] = "Midnight", [2424] = "Midnight", [2437] = "Midnight",
-    [13] = "Midnight" -- Eastern Kingdoms (Quel'Thalas revamp in Midnight)
+    -- Legion
+    [619] = "Legion",     -- Broken Isles (Continent)
+    [905] = "Legion",     -- Argus (Continent)
+    [627] = "Legion",     -- Dalaran (Broken Isles)
+    [630] = "Legion",     -- Azsuna
+    [634] = "Legion",     -- Stormheim
+    [641] = "Legion",     -- Val'sharah
+    [646] = "Legion",     -- Broken Shore
+    [650] = "Legion",     -- Highmountain
+    [680] = "Legion",     -- Suramar
+    [790] = "Legion",     -- Eye of Azshara
+    [830] = "Legion",     -- Krokuun (Argus)
+    [882] = "Legion",     -- Mac'Aree / Eredath (Argus)
+    [885] = "Legion",     -- Antoran Wastes (Argus)
+    [903] = "Legion",     -- Seat of the Triumvirate (Argus)
+
+    -- BfA (Battle for Azeroth)
+    [875] = "BfA",        -- Zandalar (Continent)
+    [876] = "BfA",        -- Kul Tiras (Continent)
+    [86] = "BfA",         -- Darkshore
+    [947] = "BfA",        -- Arathi Highlands
+    [895] = "BfA",        -- Tiragarde Sound
+    [896] = "BfA",        -- Drustvar
+    [942] = "BfA",        -- Stormsong Valley
+    [859] = "BfA",        -- Zuldazar
+    [862] = "BfA",        -- Nazmir
+    [863] = "BfA",        -- Vol'dun
+    [1161] = "BfA",       -- Boralus
+    [1165] = "BfA",       -- Dazar'alor
+    [1355] = "BfA",       -- Nazjatar
+    [1462] = "BfA",       -- Mechagon Island
+    [1527] = "BfA",       -- Uldum (N'Zoth Assault)
+    [1530] = "BfA",       -- Vale of Eternal Blossoms (N'Zoth Assault)
+
+    -- Shadowlands
+    [1550] = "Shadowlands", -- The Shadowlands (Continent)
+    [1670] = "Shadowlands", -- Oribos
+    [1533] = "Shadowlands", -- Bastion
+    [1536] = "Shadowlands", -- Maldraxxus
+    [1565] = "Shadowlands", -- Ardenweald
+    [1525] = "Shadowlands", -- Revendreth
+    [1543] = "Shadowlands", -- The Maw
+    [1961] = "Shadowlands", -- Korthia
+    [1970] = "Shadowlands", -- Zereth Mortis
+    [1971] = "Shadowlands", -- Zereth Mortis (secondary ID)
+
+    -- Dragonflight
+    [1978] = "Dragonflight", -- Dragon Isles (Continent)
+    [2022] = "Dragonflight", -- The Waking Shores
+    [2023] = "Dragonflight", -- Ohn'ahran Plains
+    [2024] = "Dragonflight", -- The Azure Span
+    [2025] = "Dragonflight", -- Thaldraszus
+    [2112] = "Dragonflight", -- The Forbidden Reach
+    [2118] = "Dragonflight", -- Valdrakken
+    [2133] = "Dragonflight", -- Zaralek Cavern
+    [2151] = "Dragonflight", -- The Forbidden Reach (alternative)
+    [2175] = "Dragonflight", -- Zaralek Cavern (alternative)
+    [2184] = "Dragonflight", -- Zaralek Cavern (alternative)
+    [2200] = "Dragonflight", -- Emerald Dream
+
+    -- The War Within
+    [2274] = "The War Within", -- Khaz Algar (Continent)
+    [2248] = "The War Within", -- Isle of Dorn
+    [2214] = "The War Within", -- The Ringing Deeps
+    [2215] = "The War Within", -- Hallowfall
+    [2255] = "The War Within", -- Azj-Kahet
+    [2346] = "The War Within", -- Undermine
+    [2352] = "The War Within", -- Siren Isle
+
+    -- Midnight
+    [2393] = "Midnight",
+    [2395] = "Midnight",
+    [2424] = "Midnight",
+    [2437] = "Midnight",
 }
 
 local mapExpansionCache = {}
@@ -72,9 +139,22 @@ local function ScanAchievement(achievementID, criteriaList)
     if not id then return end
     if completed and wasEarnedByMe then return end -- Skip completed achievements
 
-    -- Skip Mythic+ Keystone achievements
-    if name and string.find(name:lower(), "resilient keystone", 1, true) then
-        return
+    -- Blacklist verification
+    if TAT.db and TAT.db.blacklist then
+        -- 1. Check direct ID blacklist
+        if TAT.db.blacklist.achievementIDs and TAT.db.blacklist.achievementIDs[achievementID] then
+            return
+        end
+        
+        -- 2. Check Name substring blacklist
+        if name and TAT.db.blacklist.achievementNames then
+            local nameLower = name:lower()
+            for pattern, enabled in pairs(TAT.db.blacklist.achievementNames) do
+                if enabled and string.find(nameLower, pattern, 1, true) then
+                    return
+                end
+            end
+        end
     end
 
     local numCriteria = GetAchievementNumCriteria(achievementID)
@@ -112,47 +192,33 @@ local function ScanAchievement(achievementID, criteriaList)
     end
 end
 
--- Helper to check if a category or its parents belong to excluded categories (specific PvP subcategories, Dungeons & Raids)
+-- Helper to check if a category or its parents belong to blacklisted categories (e.g. PVP Battlegrounds, Dungeons & Raids)
 local function IsExcludedCategory(catID)
+    if not TAT.db or not TAT.db.blacklist or not TAT.db.blacklist.categories then
+        return false
+    end
+    
     local name, parentID = GetCategoryInfo(catID)
     if not name then return false end
     
-    local rootName = name
+    -- Check if the category itself is blacklisted
+    if TAT.db.blacklist.categories[name:lower()] then
+        return true
+    end
+    
+    -- Check parent hierarchy up to the root
     local currentID = parentID
     for i = 1, 10 do
         if not currentID or currentID == -1 then break end
         local pName, nextParent = GetCategoryInfo(currentID)
         if pName then
-            rootName = pName
+            if TAT.db.blacklist.categories[pName:lower()] then
+                return true
+            end
         end
         currentID = nextParent
     end
     
-    local rootLower = rootName:lower()
-    if rootLower == "dungeons & raids" then
-        return true
-    elseif rootLower == "player vs. player" then
-        local nameLower = name:lower()
-        if nameLower == "warsong gulch" or
-           nameLower == "arathi basin" or
-           nameLower == "eye of the storm" or
-           nameLower == "alterac valley" or
-           nameLower == "ashran" or
-           nameLower == "isle of conquest" or
-           nameLower == "wintergrasp" or
-           nameLower == "battle for gilneas" or
-           nameLower == "twin peaks" or
-           nameLower == "silvershard mines" or
-           nameLower == "temple of kotmogu" or
-           nameLower == "seething shore" or
-           nameLower == "deepwind gorge" or
-           nameLower == "deephaul ravine" or
-           nameLower == "rated battleground" or
-           nameLower == "arena" or
-           nameLower == "battlegrounds" then
-            return true
-        end
-    end
     return false
 end
 
@@ -396,7 +462,8 @@ function TAT:GetFilteredQuests()
         
         local passExp = false
         local expansion = GetMapExpansion(q.mapID)
-        if expansion == "Other" or TAT.db.filterExpansions[expansion] then
+        local filterKey = expansion:gsub("%s+", "")
+        if expansion == "Other" or TAT.db.filterExpansions[filterKey] then
             passExp = true
         end
         

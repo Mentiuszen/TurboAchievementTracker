@@ -16,6 +16,32 @@ local defaultSettings = {
         ["TheWarWithin"] = true,
         ["Midnight"] = true,
     },
+    blacklist = {
+        categories = {
+            ["dungeons & raids"] = true,
+            ["warsong gulch"] = true,
+            ["arathi basin"] = true,
+            ["eye of the storm"] = true,
+            ["alterac valley"] = true,
+            ["ashran"] = true,
+            ["isle of conquest"] = true,
+            ["wintergrasp"] = true,
+            ["battle for gilneas"] = true,
+            ["twin peaks"] = true,
+            ["silvershard mines"] = true,
+            ["temple of kotmogu"] = true,
+            ["seething shore"] = true,
+            ["deepwind gorge"] = true,
+            ["deephaul ravine"] = true,
+            ["rated battleground"] = true,
+            ["arena"] = true,
+            ["battlegrounds"] = true,
+        },
+        achievementNames = {
+            ["resilient keystone"] = true,
+        },
+        achievementIDs = {}
+    },
     minimap = {
         hide = false,
         minimapPos = 220,
@@ -29,6 +55,22 @@ local defaultSettings = {
     }
 }
 
+-- Recursive helper to copy default settings into target database without overwriting existing entries
+local function CopyDefaults(src, dest)
+    for k, v in pairs(src) do
+        if type(v) == "table" then
+            if dest[k] == nil then
+                dest[k] = {}
+            end
+            CopyDefaults(v, dest[k])
+        else
+            if dest[k] == nil then
+                dest[k] = v
+            end
+        end
+    end
+end
+
 -- Initialize DB
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
@@ -41,28 +83,8 @@ frame:SetScript("OnEvent", function(self, event, loadedAddonName)
     
     TAT.db = _G.TurboAchievementTracker_DB
     
-    -- Load defaults
-    for k, v in pairs(defaultSettings) do
-        if TAT.db[k] == nil then
-            if type(v) == "table" then
-                TAT.db[k] = {}
-                for subK, subV in pairs(v) do
-                    TAT.db[k][subK] = subV
-                end
-            else
-                TAT.db[k] = v
-            end
-        else
-            -- Ensure sub-tables are filled too
-            if type(v) == "table" then
-                for subK, subV in pairs(v) do
-                    if TAT.db[k][subK] == nil then
-                        TAT.db[k][subK] = subV
-                    end
-                end
-            end
-        end
-    end
+    -- Load defaults recursively
+    CopyDefaults(defaultSettings, TAT.db)
     
     -- Broadcast that database is loaded
     if TAT.OnDatabaseLoaded then
