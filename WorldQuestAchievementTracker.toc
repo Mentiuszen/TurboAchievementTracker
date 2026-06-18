@@ -4,6 +4,7 @@
 ## Author: Mentiuszen
 ## Version: 1.0.0
 ## SavedVariables: WorldQuestAchievementTracker_DB
+Libs\libs.xml
 
 Templates\mQoL_Styles.lua
 Templates\mQoL_Templates.lua
