@@ -77,10 +77,13 @@ local parentToExpansion = {
     [2352] = "The War Within", -- Siren Isle
 
     -- Midnight
-    [2393] = "Midnight",
-    [2395] = "Midnight",
-    [2424] = "Midnight",
-    [2437] = "Midnight",
+    [2393] = "Midnight",     -- Eversong Woods (Revamped)
+    [2395] = "Midnight",     -- Silvermoon / Quel'Thalas
+    [2404] = "Midnight",     -- Silvermoon City (Hub)
+    [2405] = "Midnight",     -- Voidstorm (contains Slayer's Rise)
+    [2413] = "Midnight",     -- Harandar
+    [2424] = "Midnight",     -- Isle of Quel'Danas
+    [2437] = "Midnight",     -- Zul'Aman
 }
 
 local mapExpansionCache = {}
@@ -92,7 +95,7 @@ local function GetMapExpansion(mapID)
     end
     
     local curID = mapID
-    for depth = 1, 10 do
+    for depth = 1, 20 do
         if not curID or curID == 0 then break end
         if parentToExpansion[curID] then
             mapExpansionCache[mapID] = parentToExpansion[curID]
