@@ -118,17 +118,11 @@ function TAT:BuildMapCache()
     end
 end
 
--- Case-insensitive trimmed fuzzy match
+-- Case-insensitive trimmed exact match
 local function IsMatch(wqTitle, criteriaName)
     local wq = strtrim(wqTitle:lower())
     local crit = strtrim(criteriaName:lower())
-    if wq == crit then return true end
-    
-    -- Only allow substring matches if the criterion is descriptive/long enough (>= 8 characters)
-    if #crit >= 8 and string.find(wq, crit, 1, true) then
-        return true
-    end
-    return false
+    return wq == crit
 end
 
 -- Recursive achievement scanner to extract leaf criteria strings
@@ -176,7 +170,8 @@ local function ScanAchievement(achievementID, criteriaList)
                 achievementID = achievementID,
                 achievementName = name,
                 criteriaString = criteriaString or "",
-                criteriaIndex = i
+                criteriaIndex = i,
+                criteriaType = criteriaType
             }
             if criteriaType == 27 and assetID and assetID > 0 then
                 criteriaList[assetID] = criteriaList[assetID] or {}
@@ -399,13 +394,41 @@ function TAT:RunScan(force)
                             end
                             
                             -- 2. Fallback Name Match (for non-Quest criteria, key is a string)
+                            -- Cross-validate WQ type against achievement category to prevent
+                            -- impossible matches (e.g. pet battle WQ matching a non-pet-battle achievement)
                             for key, infoList in pairs(TAT.criteriaLookup) do
                                 if type(key) == "string" then
                                     for _, info in ipairs(infoList) do
                                         if not addedAchievements[info.achievementID] then
                                             if IsMatch(title, info.criteriaString) then
-                                                addedAchievements[info.achievementID] = true
-                                                table.insert(matchedInfos, info)
+                                                -- Cross-validation: WQ type must be compatible with achievement category
+                                                local isCompatible = true
+                                                
+                                                local achIsPetBattle = IsAchievementInCategory(info.achievementID, "pet battles")
+                                                local achIsPvP = IsAchievementInCategory(info.achievementID, "player vs. player")
+                                                local achIsProfession = IsAchievementInCategory(info.achievementID, "professions")
+                                                
+                                                -- If the WQ is a pet battle, only match pet battle achievements
+                                                if isPetBattle and not achIsPetBattle then
+                                                    isCompatible = false
+                                                end
+                                                -- If the WQ is PvP, only match PvP achievements
+                                                if isPvP and not achIsPvP then
+                                                    isCompatible = false
+                                                end
+                                                -- If the WQ is a profession quest, only match profession achievements
+                                                if isProfession and not achIsProfession then
+                                                    isCompatible = false
+                                                end
+                                                -- Reverse: if the achievement IS a pet battle achievement, only match pet battle WQs
+                                                if achIsPetBattle and not isPetBattle then
+                                                    isCompatible = false
+                                                end
+                                                
+                                                if isCompatible then
+                                                    addedAchievements[info.achievementID] = true
+                                                    table.insert(matchedInfos, info)
+                                                end
                                             end
                                         end
                                     end
