@@ -336,95 +336,98 @@ function WQAT:RunScan(force)
                     local questID = questInfo.questID or questInfo.questId
                     if questID and not processedQuests[questID] then
                         processedQuests[questID] = true
-                        questsFoundCount = questsFoundCount + 1
                         
-                        local title = C_QuestLog.GetTitleForQuestID(questID)
-                        if not title or title == "" then
-                            C_QuestLog.RequestLoadQuestByID(questID)
-                            needsRetry = true
-                        else
-                            local tagInfo = C_QuestLog.GetQuestTagInfo(questID)
-                            local wqType = tagInfo and tagInfo.worldQuestType
-                            local QTT = Enum and Enum.QuestTagType
-                            local isPetBattle = wqType and QTT and wqType == QTT.PetBattle
-                            local isPvP = wqType and QTT and wqType == QTT.PvP
-                            local isProfession = (wqType and QTT and QTT.Profession and wqType == QTT.Profession) or (tagInfo and tagInfo.tradeskillLineID and tagInfo.tradeskillLineID > 0)
+                        if C_QuestLog.IsWorldQuest(questID) then
+                            questsFoundCount = questsFoundCount + 1
                             
-                            local matchedInfos = {}
-                            local addedAchievements = {}
-                            
-                            local idMatches = WQAT.criteriaLookup[questID]
-                            if idMatches then
-                                for _, info in ipairs(idMatches) do
-                                    if not addedAchievements[info.achievementID] then
-                                        addedAchievements[info.achievementID] = true
-                                        table.insert(matchedInfos, info)
+                            local title = C_QuestLog.GetTitleForQuestID(questID)
+                            if not title or title == "" or (HaveQuestData and not HaveQuestData(questID)) then
+                                C_QuestLog.RequestLoadQuestByID(questID)
+                                needsRetry = true
+                            else
+                                local tagInfo = C_QuestLog.GetQuestTagInfo(questID)
+                                local wqType = tagInfo and tagInfo.worldQuestType
+                                local QTT = Enum and Enum.QuestTagType
+                                local isPetBattle = wqType and QTT and wqType == QTT.PetBattle
+                                local isPvP = wqType and QTT and wqType == QTT.PvP
+                                local isProfession = (wqType and QTT and QTT.Profession and wqType == QTT.Profession) or (tagInfo and tagInfo.tradeskillLineID and tagInfo.tradeskillLineID > 0)
+                                
+                                local matchedInfos = {}
+                                local addedAchievements = {}
+                                
+                                local idMatches = WQAT.criteriaLookup[questID]
+                                if idMatches then
+                                    for _, info in ipairs(idMatches) do
+                                        if not addedAchievements[info.achievementID] then
+                                            addedAchievements[info.achievementID] = true
+                                            table.insert(matchedInfos, info)
+                                        end
                                     end
                                 end
-                            end
-                            
-                            for key, infoList in pairs(WQAT.criteriaLookup) do
-                                if type(key) == "string" then
-                                    for _, info in ipairs(infoList) do
-                                        if not addedAchievements[info.achievementID] then
-                                            if IsMatch(title, info.criteriaString) then
-                                                local isCompatible = true
-                                                
-                                                local achIsPetBattle = IsAchievementInCategory(info.achievementID, "pet battles")
-                                                local achIsPvP = IsAchievementInCategory(info.achievementID, "player vs. player")
-                                                local achIsProfession = IsAchievementInCategory(info.achievementID, "professions")
-                                                
-                                                if isPetBattle and not achIsPetBattle then
-                                                    isCompatible = false
-                                                end
-                                                if isPvP and not achIsPvP then
-                                                    isCompatible = false
-                                                end
-                                                if isProfession and not achIsProfession then
-                                                    isCompatible = false
-                                                end
-                                                if achIsPetBattle and not isPetBattle then
-                                                    isCompatible = false
-                                                end
-                                                
-                                                if isCompatible then
-                                                    addedAchievements[info.achievementID] = true
-                                                    table.insert(matchedInfos, info)
+                                
+                                for key, infoList in pairs(WQAT.criteriaLookup) do
+                                    if type(key) == "string" then
+                                        for _, info in ipairs(infoList) do
+                                            if not addedAchievements[info.achievementID] then
+                                                if IsMatch(title, info.criteriaString) then
+                                                    local isCompatible = true
+                                                    
+                                                    local achIsPetBattle = IsAchievementInCategory(info.achievementID, "pet battles")
+                                                    local achIsPvP = IsAchievementInCategory(info.achievementID, "player vs. player")
+                                                    local achIsProfession = IsAchievementInCategory(info.achievementID, "professions")
+                                                    
+                                                    if isPetBattle and not achIsPetBattle then
+                                                        isCompatible = false
+                                                    end
+                                                    if isPvP and not achIsPvP then
+                                                        isCompatible = false
+                                                    end
+                                                    if isProfession and not achIsProfession then
+                                                        isCompatible = false
+                                                    end
+                                                    if achIsPetBattle and not isPetBattle then
+                                                        isCompatible = false
+                                                    end
+                                                    
+                                                    if isCompatible then
+                                                        addedAchievements[info.achievementID] = true
+                                                        table.insert(matchedInfos, info)
+                                                    end
                                                 end
                                             end
                                         end
                                     end
                                 end
-                            end
-                            
-                            for _, critInfo in ipairs(matchedInfos) do
-                                local timeLeft = C_TaskQuest.GetQuestTimeLeftMinutes(questID) or 0
-                                local mapInfo = C_Map.GetMapInfo(mapID)
-                                local zoneName = mapInfo and mapInfo.name or "Unknown Zone"
                                 
-                                local finalIsPetBattle = isPetBattle or IsAchievementInCategory(critInfo.achievementID, "pet battles")
-                                local finalIsPvP = isPvP or IsAchievementInCategory(critInfo.achievementID, "player vs. player")
-                                local finalIsProfession = isProfession or IsAchievementInCategory(critInfo.achievementID, "professions")
-                                local finalIsNormal = not finalIsPetBattle and not finalIsPvP and not finalIsProfession
-                                
-                                local questData = {
-                                    questID = questID,
-                                    title = title,
-                                    zoneName = zoneName,
-                                    mapID = mapID,
-                                    timeLeft = timeLeft,
-                                    achievementID = critInfo.achievementID,
-                                    achievementName = critInfo.achievementName,
-                                    criteriaString = critInfo.criteriaString,
-                                    criteriaIndex = critInfo.criteriaIndex,
-                                    isPetBattle = finalIsPetBattle,
-                                    isPvP = finalIsPvP,
-                                    isProfession = finalIsProfession,
-                                    isNormal = finalIsNormal,
-                                    expansion = expansion
-                                }
-                                
-                                table.insert(WQAT.scannedNeededQuests, questData)
+                                for _, critInfo in ipairs(matchedInfos) do
+                                    local timeLeft = C_TaskQuest.GetQuestTimeLeftMinutes(questID) or 0
+                                    local mapInfo = C_Map.GetMapInfo(mapID)
+                                    local zoneName = mapInfo and mapInfo.name or "Unknown Zone"
+                                    
+                                    local finalIsPetBattle = isPetBattle or IsAchievementInCategory(critInfo.achievementID, "pet battles")
+                                    local finalIsPvP = isPvP or IsAchievementInCategory(critInfo.achievementID, "player vs. player")
+                                    local finalIsProfession = isProfession or IsAchievementInCategory(critInfo.achievementID, "professions")
+                                    local finalIsNormal = not finalIsPetBattle and not finalIsPvP and not finalIsProfession
+                                    
+                                    local questData = {
+                                        questID = questID,
+                                        title = title,
+                                        zoneName = zoneName,
+                                        mapID = mapID,
+                                        timeLeft = timeLeft,
+                                        achievementID = critInfo.achievementID,
+                                        achievementName = critInfo.achievementName,
+                                        criteriaString = critInfo.criteriaString,
+                                        criteriaIndex = critInfo.criteriaIndex,
+                                        isPetBattle = finalIsPetBattle,
+                                        isPvP = finalIsPvP,
+                                        isProfession = finalIsProfession,
+                                        isNormal = finalIsNormal,
+                                        expansion = expansion
+                                    }
+                                    
+                                    table.insert(WQAT.scannedNeededQuests, questData)
+                                end
                             end
                         end
                     end
@@ -440,7 +443,14 @@ function WQAT:RunScan(force)
     if hasEnteredWorld and WQAT.db.showLoginReminder and not hasPrintedReminder and WQAT.criteriaLookupBuilt then
         hasPrintedReminder = true
         local filteredQuests = WQAT:GetFilteredQuests()
-        local neededCount = #filteredQuests
+        local uniqueQuests = {}
+        for _, q in ipairs(filteredQuests) do
+            uniqueQuests[q.questID] = true
+        end
+        local neededCount = 0
+        for _ in pairs(uniqueQuests) do
+            neededCount = neededCount + 1
+        end
         local colorPrefix = "|cff00ff00[World Quest Achievement Tracker]:|r "
         local msg
         if neededCount > 0 then
