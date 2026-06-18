@@ -1,5 +1,5 @@
 $SourceRoot = "c:\Users\PC\Documents\GitHub\TurboAchievementTracker"
-$Destination = "C:\Gry\World of Warcraft\_retail_\Interface\AddOns\TurboAchievementTracker"
+$Destination = "C:\Gry\World of Warcraft\_retail_\Interface\AddOns\WorldQuestAchievementTracker"
 
 function Test-FileNeedsUpdate {
     param(
@@ -27,7 +27,7 @@ function Test-FileNeedsUpdate {
     return $sourceHash -ne $destinationHash
 }
 
-Write-Host "==== Syncing TurboAchievementTracker ====" -ForegroundColor Cyan
+Write-Host "==== Syncing World Quest Achievement Tracker ====" -ForegroundColor Cyan
 
 if (-not (Test-Path -LiteralPath $Destination)) {
     Write-Host "Creating destination directory: $Destination"

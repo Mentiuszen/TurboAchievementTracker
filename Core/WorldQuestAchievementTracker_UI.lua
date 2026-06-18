@@ -1,11 +1,10 @@
-local addonName, TAT = ...
-TAT.UI = {}
+local addonName, WQAT = ...
+WQAT.UI = {}
 
 local activeTab = "achievements"
 local mainFrame
 local framePool = {}
 
--- UI Styling Constants
 local COLOR_BG = {0.05, 0.05, 0.05, 0.95}
 local COLOR_TITLE = {0.08, 0.08, 0.08, 1}
 local COLOR_SIDEBAR = {0.04, 0.04, 0.04, 1}
@@ -13,91 +12,86 @@ local COLOR_BORDER = {0.2, 0.2, 0.2, 1}
 local COLOR_CARD = {0.1, 0.1, 0.1, 0.9}
 local COLOR_CARD_HOVER = {0.15, 0.15, 0.15, 1}
 
--- Helper to update the achievements list and filter checkboxes
 local function UpdateAchievementsPage()
     local page = mainFrame.achievementsPage
     if not page then return end
     
-    -- 1. Create filters if they don't exist yet
     if not page.filtersFrame then
         local ff = CreateFrame("Frame", nil, page)
         ff:SetSize(590, 60)
         ff:SetPoint("TOPLEFT", 10, -5)
         page.filtersFrame = ff
         
-        -- Create Quest Type filters
         ff.cbPet = mQoL_Styles.CreateCustomCheckbox(ff, "Pet Battle")
         ff.cbPet:SetPoint("TOPLEFT", 15, -5)
         ff.cbPet.OnValueChanged = function(_, checked)
-            TAT.db.filterPetBattle = checked
-            TAT:RefreshUI()
+            WQAT.db.filterPetBattle = checked
+            WQAT:RefreshUI()
         end
         
         ff.cbPvP = mQoL_Styles.CreateCustomCheckbox(ff, "PvP")
         ff.cbPvP:SetPoint("TOPLEFT", 160, -5)
         ff.cbPvP.OnValueChanged = function(_, checked)
-            TAT.db.filterPvP = checked
-            TAT:RefreshUI()
+            WQAT.db.filterPvP = checked
+            WQAT:RefreshUI()
         end
         
         ff.cbProf = mQoL_Styles.CreateCustomCheckbox(ff, "Profession")
         ff.cbProf:SetPoint("TOPLEFT", 260, -5)
         ff.cbProf.OnValueChanged = function(_, checked)
-            TAT.db.filterProfession = checked
-            TAT:RefreshUI()
+            WQAT.db.filterProfession = checked
+            WQAT:RefreshUI()
         end
         
         ff.cbNorm = mQoL_Styles.CreateCustomCheckbox(ff, "Normal")
         ff.cbNorm:SetPoint("TOPLEFT", 400, -5)
         ff.cbNorm.OnValueChanged = function(_, checked)
-            TAT.db.filterNormal = checked
-            TAT:RefreshUI()
+            WQAT.db.filterNormal = checked
+            WQAT:RefreshUI()
         end
         
-        -- Create Expansion filters
         ff.cbLegion = mQoL_Styles.CreateCustomCheckbox(ff, "Legion")
         ff.cbLegion:SetPoint("TOPLEFT", 15, -30)
         ff.cbLegion.OnValueChanged = function(_, checked)
-            TAT.db.filterExpansions["Legion"] = checked
-            TAT:RefreshUI()
+            WQAT.db.filterExpansions["Legion"] = checked
+            WQAT:RefreshUI()
         end
         
         ff.cbBfA = mQoL_Styles.CreateCustomCheckbox(ff, "BfA")
         ff.cbBfA:SetPoint("TOPLEFT", 90, -30)
         ff.cbBfA.OnValueChanged = function(_, checked)
-            TAT.db.filterExpansions["BfA"] = checked
-            TAT:RefreshUI()
+            WQAT.db.filterExpansions["BfA"] = checked
+            WQAT:RefreshUI()
         end
         
         ff.cbSL = mQoL_Styles.CreateCustomCheckbox(ff, "Shadowlands")
         ff.cbSL:SetPoint("TOPLEFT", 150, -30)
         ff.cbSL.OnValueChanged = function(_, checked)
-            TAT.db.filterExpansions["Shadowlands"] = checked
-            TAT:RefreshUI()
+            WQAT.db.filterExpansions["Shadowlands"] = checked
+            WQAT:RefreshUI()
         end
         
         ff.cbDF = mQoL_Styles.CreateCustomCheckbox(ff, "Dragonflight")
         ff.cbDF:SetPoint("TOPLEFT", 265, -30)
         ff.cbDF.OnValueChanged = function(_, checked)
-            TAT.db.filterExpansions["Dragonflight"] = checked
-            TAT:RefreshUI()
+            WQAT.db.filterExpansions["Dragonflight"] = checked
+            WQAT:RefreshUI()
         end
         
         ff.cbTWW = mQoL_Styles.CreateCustomCheckbox(ff, "The War Within")
         ff.cbTWW:SetPoint("TOPLEFT", 380, -30)
         ff.cbTWW.OnValueChanged = function(_, checked)
-            TAT.db.filterExpansions["TheWarWithin"] = checked
-            TAT:RefreshUI()
+            WQAT.db.filterExpansions["TheWarWithin"] = checked
+            WQAT:RefreshUI()
         end
         
         ff.cbMidnight = mQoL_Styles.CreateCustomCheckbox(ff, "Midnight")
         ff.cbMidnight:SetPoint("TOPLEFT", 510, -30)
         ff.cbMidnight.OnValueChanged = function(_, checked)
-            TAT.db.filterExpansions["Midnight"] = checked
-            TAT:RefreshUI()
+            WQAT.db.filterExpansions["Midnight"] = checked
+            WQAT:RefreshUI()
         end
         
-        -- Separator line
         local sep = ff:CreateTexture(nil, "ARTWORK")
         sep:SetColorTexture(0.25, 0.25, 0.25, 1)
         sep:SetHeight(1)
@@ -105,19 +99,17 @@ local function UpdateAchievementsPage()
         sep:SetPoint("TOPRIGHT", -5, -55)
     end
     
-    -- Sync checkbox values
-    page.filtersFrame.cbPet:SetValue(TAT.db.filterPetBattle)
-    page.filtersFrame.cbPvP:SetValue(TAT.db.filterPvP)
-    page.filtersFrame.cbProf:SetValue(TAT.db.filterProfession)
-    page.filtersFrame.cbNorm:SetValue(TAT.db.filterNormal)
-    page.filtersFrame.cbLegion:SetValue(TAT.db.filterExpansions["Legion"])
-    page.filtersFrame.cbBfA:SetValue(TAT.db.filterExpansions["BfA"])
-    page.filtersFrame.cbSL:SetValue(TAT.db.filterExpansions["Shadowlands"])
-    page.filtersFrame.cbDF:SetValue(TAT.db.filterExpansions["Dragonflight"])
-    page.filtersFrame.cbTWW:SetValue(TAT.db.filterExpansions["TheWarWithin"])
-    page.filtersFrame.cbMidnight:SetValue(TAT.db.filterExpansions["Midnight"])
+    page.filtersFrame.cbPet:SetValue(WQAT.db.filterPetBattle)
+    page.filtersFrame.cbPvP:SetValue(WQAT.db.filterPvP)
+    page.filtersFrame.cbProf:SetValue(WQAT.db.filterProfession)
+    page.filtersFrame.cbNorm:SetValue(WQAT.db.filterNormal)
+    page.filtersFrame.cbLegion:SetValue(WQAT.db.filterExpansions["Legion"])
+    page.filtersFrame.cbBfA:SetValue(WQAT.db.filterExpansions["BfA"])
+    page.filtersFrame.cbSL:SetValue(WQAT.db.filterExpansions["Shadowlands"])
+    page.filtersFrame.cbDF:SetValue(WQAT.db.filterExpansions["Dragonflight"])
+    page.filtersFrame.cbTWW:SetValue(WQAT.db.filterExpansions["TheWarWithin"])
+    page.filtersFrame.cbMidnight:SetValue(WQAT.db.filterExpansions["Midnight"])
     
-    -- 2. Create scroll frame if it doesn't exist yet
     if not page.scrollFrame then
         local sf, child = mQoL_Templates.CreateScrollPanel(page, {
             width = 590,
@@ -129,7 +121,6 @@ local function UpdateAchievementsPage()
         page.scrollChild = child
     end
     
-    -- Recycle existing rows back into pool
     if page.rows then
         for _, row in ipairs(page.rows) do
             row:Hide()
@@ -141,8 +132,7 @@ local function UpdateAchievementsPage()
         page.rows = {}
     end
     
-    -- 3. Filter and build achievements list
-    local filteredQuests = TAT:GetFilteredQuests()
+    local filteredQuests = WQAT:GetFilteredQuests()
     local progressableList = {}
     local achievementsMap = {}
     
@@ -169,8 +159,6 @@ local function UpdateAchievementsPage()
         ach.numCriteria = numCriteria
     end
     
-    -- Sort by completed criteria count (descending)
-    -- Fallbacks: total criteria count (descending), then alphabetically by name
     table.sort(progressableList, function(a, b)
         if a.completedCount ~= b.completedCount then
             return a.completedCount > b.completedCount
@@ -261,14 +249,16 @@ local function UpdateAchievementsPage()
             local trackBtn = mQoL_Styles.CreateCustomButton(subRow, "Track", 75, 22)
             trackBtn:SetScript("OnClick", function()
                 C_SuperTrack.SetSuperTrackedQuestID(q.questID)
-                if AddTrackedAchievement then
+                if C_ContentTracking and C_ContentTracking.StartTracking then
+                    C_ContentTracking.StartTracking(Enum.ContentTrackingType.Achievement, q.achievementID)
+                elseif AddTrackedAchievement then
                     AddTrackedAchievement(q.achievementID)
                 end
                 UIFrameFadeOut(mainFrame, 0.15, 1, 0)
                 C_Timer.After(0.15, function()
                     mainFrame:Hide()
                 end)
-                print(string.format("|cff00ff00[TurboAchievementTracker]:|r Supertracking set to |cffffff00%s|r!", q.title))
+                print(string.format("|cff00ff00[World Quest Achievement Tracker]:|r Tracking set to |cffffff00%s|r!", q.title))
             end)
             trackBtn:SetPoint("RIGHT", -6, 0)
             
@@ -284,7 +274,6 @@ local function UpdateAchievementsPage()
     end
 end
 
--- Helper to create setting option rows similar to mQoL
 local function AddOptionRow(parent, yOffset, name, controlType, controlParams, extra, applyFunc)
     local leftMargin = 15
     local labelWidth = 280
@@ -298,7 +287,6 @@ local function AddOptionRow(parent, yOffset, name, controlType, controlParams, e
     row:SetSize(rowWidth, rowHeight)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", 10, -yOffset)
     
-    -- Label
     local label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     label:SetPoint("LEFT", row, "LEFT", leftMargin, 0)
     label:SetSize(labelWidth, rowHeight)
@@ -396,7 +384,6 @@ local function AddOptionRow(parent, yOffset, name, controlType, controlParams, e
     return row, control
 end
 
--- Helper to update the settings page controls
 local function UpdateSettingsPage()
     local page = mainFrame.settingsPage
     if not page then return end
@@ -413,7 +400,6 @@ local function UpdateSettingsPage()
         
         local yOffset = 15
         
-        -- General Settings Title
         local generalLabel = child:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
         generalLabel:SetPoint("TOPLEFT", 15, -yOffset)
         generalLabel:SetText("General Settings")
@@ -421,36 +407,31 @@ local function UpdateSettingsPage()
         
         yOffset = yOffset + 25
         
-        -- 1. Minimap Option Row
         local rowMinimap, cbMinimap = AddOptionRow(child, yOffset, "Hide Minimap Button", "checkbox", {
-            value = TAT.db.minimap.hide,
+            value = WQAT.db.minimap.hide,
             onValueChanged = function(_, checked)
-                TAT.db.minimap.hide = checked
-                TAT:UpdateMinimapButtonVisibility()
+                WQAT.db.minimap.hide = checked
+                WQAT:UpdateMinimapButtonVisibility()
             end
         })
         page.cbMinimap = cbMinimap
         yOffset = yOffset + rowMinimap:GetHeight() + 15
         
-        -- 2. Login Reminder Option Row
         local rowReminder, cbReminder = AddOptionRow(child, yOffset, "Show login chat reminder of needed quests", "checkbox", {
-            value = TAT.db.showLoginReminder,
+            value = WQAT.db.showLoginReminder,
             onValueChanged = function(_, checked)
-                TAT.db.showLoginReminder = checked
+                WQAT.db.showLoginReminder = checked
             end
         })
         page.cbReminder = cbReminder
         yOffset = yOffset + rowReminder:GetHeight() + 15
         
-        -- 3. UI Scale Slider Row
-        -- EditBox for scale input/display
         local scaleEditBox = mQoL_Styles.CreateCustomInputBox(child, 40, 20)
         scaleEditBox.bg = scaleEditBox:CreateTexture(nil, "BACKGROUND")
         scaleEditBox.bg:SetAllPoints()
         scaleEditBox.bg:SetColorTexture(0.15, 0.15, 0.15, 1)
         scaleEditBox.border = mQoL_Templates.CreateFrameBorder(scaleEditBox, 1, {0.25, 0.25, 0.25, 1})
         
-        -- Filter input to allow only valid numbers
         scaleEditBox:SetScript("OnTextChanged", function(self)
             local text = self:GetText()
             local cleanText = text:gsub("[^0-9.]", "")
@@ -470,14 +451,14 @@ local function UpdateSettingsPage()
             val = tonumber(val)
             if val then
                 val = math.max(0.7, math.min(1.5, val))
-                val = math.floor(val / 0.05 + 0.5) * 0.05 -- Snap to step 0.05
-                TAT.db.ui.scale = val
+                val = math.floor(val / 0.05 + 0.5) * 0.05
+                WQAT.db.ui.scale = val
                 scaleSlider:SetValue(val)
                 scaleSlider:UpdateThumb()
                 scaleEditBox:SetText(string.format("%.2f", val))
                 mainFrame:SetScale(val)
             else
-                scaleEditBox:SetText(string.format("%.2f", TAT.db.ui.scale))
+                scaleEditBox:SetText(string.format("%.2f", WQAT.db.ui.scale))
             end
         end
         
@@ -487,7 +468,7 @@ local function UpdateSettingsPage()
         end)
         
         local rowScale, slider = AddOptionRow(child, yOffset, "UI Scale", "slider", {
-            value = TAT.db.ui.scale,
+            value = WQAT.db.ui.scale,
             min = 0.7,
             max = 1.5,
             step = 0.05,
@@ -506,12 +487,11 @@ local function UpdateSettingsPage()
         
         yOffset = yOffset + rowScale:GetHeight() + 25
         
-        -- 4. Manual Scan Button
         local scanBtn = mQoL_Styles.CreateCustomButton(child, "Run Manual Scan", 200, 30)
         scanBtn:SetPoint("TOPLEFT", child, "TOPLEFT", 25, -yOffset)
         scanBtn:SetScript("OnClick", function()
-            TAT:RunScan(true)
-            print("|cff00ff00[TurboAchievementTracker]:|r Manual scan completed successfully.")
+            WQAT:RunScan(true)
+            print("|cff00ff00[World Quest Achievement Tracker]:|r Manual scan completed successfully.")
         end)
         page.scanBtn = scanBtn
         
@@ -519,26 +499,23 @@ local function UpdateSettingsPage()
         child:SetHeight(yOffset)
     end
     
-    -- Sync values
-    page.cbMinimap:SetValue(TAT.db.minimap.hide)
-    page.cbReminder:SetValue(TAT.db.showLoginReminder)
-    page.scaleSlider:SetValue(TAT.db.ui.scale)
+    page.cbMinimap:SetValue(WQAT.db.minimap.hide)
+    page.cbReminder:SetValue(WQAT.db.showLoginReminder)
+    page.scaleSlider:SetValue(WQAT.db.ui.scale)
     page.scaleSlider:UpdateThumb()
-    page.scaleEditBox:SetText(string.format("%.2f", TAT.db.ui.scale))
+    page.scaleEditBox:SetText(string.format("%.2f", WQAT.db.ui.scale))
     
     if page.scrollFrame.scrollbar and page.scrollFrame.scrollbar.UpdateScrollbar then
         page.scrollFrame.scrollbar:UpdateScrollbar()
     end
 end
 
--- Toggle active tab
 local function SelectTab(tab)
     activeTab = tab
-    TAT:RefreshUI()
+    WQAT:RefreshUI()
 end
 
--- Refreshes the active page
-function TAT:RefreshUI()
+function WQAT:RefreshUI()
     if not mainFrame or not mainFrame:IsShown() then return end
     
     mainFrame.achievementsPage:Hide()
@@ -579,16 +556,15 @@ function TAT:RefreshUI()
     end
 end
 
-function TAT:UpdateUI()
+function WQAT:UpdateUI()
     if mainFrame and mainFrame:IsShown() then
-        TAT:RefreshUI()
+        WQAT:RefreshUI()
     end
 end
 
--- Toggles main window visibility
-function TAT:ToggleUI()
+function WQAT:ToggleUI()
     if not mainFrame then
-        TAT:CreateMainFrame()
+        WQAT:CreateMainFrame()
     end
     
     if mainFrame:IsShown() then
@@ -600,19 +576,19 @@ function TAT:ToggleUI()
         mainFrame:SetAlpha(0)
         mainFrame:Show()
         UIFrameFadeIn(mainFrame, 0.15, 0, 1)
-        TAT:RefreshUI()
+        WQAT:RefreshUI()
     end
 end
 
-function TAT:CreateMainFrame()
-    local f = CreateFrame("Frame", "TAT_MainFrame", UIParent)
+function WQAT:CreateMainFrame()
+    local f = CreateFrame("Frame", "WQAT_MainFrame", UIParent)
     mainFrame = f
     
-    table.insert(UISpecialFrames, "TAT_MainFrame")
+    table.insert(UISpecialFrames, "WQAT_MainFrame")
     
-    f:SetScale(TAT.db.ui.scale or 1.0)
+    f:SetScale(WQAT.db.ui.scale or 1.0)
     f:SetSize(800, 480)
-    f:SetPoint(TAT.db.ui.point, UIParent, TAT.db.ui.relativePoint, TAT.db.ui.x, TAT.db.ui.y)
+    f:SetPoint(WQAT.db.ui.point, UIParent, WQAT.db.ui.relativePoint, WQAT.db.ui.x, WQAT.db.ui.y)
     
     f:SetMovable(true)
     f:EnableMouse(true)
@@ -625,7 +601,6 @@ function TAT:CreateMainFrame()
         edgeSize = 1,
     }, COLOR_BG, COLOR_BORDER)
     
-    -- Title Bar
     local titleBar = CreateFrame("Frame", nil, f)
     titleBar:SetHeight(30)
     titleBar:SetPoint("TOPLEFT", 0, 0)
@@ -641,18 +616,17 @@ function TAT:CreateMainFrame()
     titleBar:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
         local point, _, relativePoint, x, y = f:GetPoint()
-        TAT.db.ui.point = point
-        TAT.db.ui.relativePoint = relativePoint
-        TAT.db.ui.x = x
-        TAT.db.ui.y = y
+        WQAT.db.ui.point = point
+        WQAT.db.ui.relativePoint = relativePoint
+        WQAT.db.ui.x = x
+        WQAT.db.ui.y = y
     end)
     
     local titleText = titleBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
     titleText:SetPoint("LEFT", 12, 0)
-    titleText:SetText("Turbo Achievement Tracker")
+    titleText:SetText("World Quest Achievement Tracker")
     titleText:SetTextColor(1, 0.82, 0)
     
-    -- Close button
     local closeBtn = mQoL_Templates.CreateCloseButton(titleBar, 20, function()
         UIFrameFadeOut(f, 0.15, 1, 0)
         C_Timer.After(0.15, function()
@@ -661,8 +635,7 @@ function TAT:CreateMainFrame()
     end)
     closeBtn:SetPoint("RIGHT", -8, 0)
     
-    -- Sidebar
-    local sidebar = CreateFrame("Frame", "TAT_Sidebar", f)
+    local sidebar = CreateFrame("Frame", "WQAT_Sidebar", f)
     sidebar:SetSize(180, 450)
     sidebar:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 0, 0)
     mQoL_Templates.SetBackdrop(sidebar, {
@@ -671,7 +644,6 @@ function TAT:CreateMainFrame()
     }, COLOR_SIDEBAR, COLOR_BORDER)
     f.sidebar = sidebar
     
-    -- Sidebar navigation buttons
     local function CreateNavButton(label, yOffset, tabName)
         local btn = CreateFrame("Button", nil, sidebar)
         btn:SetSize(160, 32)
@@ -703,15 +675,13 @@ function TAT:CreateMainFrame()
     f.btnAchievements = CreateNavButton("Achievements", -20, "achievements")
     f.btnSettings = CreateNavButton("Settings", -60, "settings")
     
-    -- Footer/Credits
     local credits = sidebar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     credits:SetPoint("BOTTOM", 0, 10)
     local version = C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(addonName, "Version")
         or GetAddOnMetadata and GetAddOnMetadata(addonName, "Version")
-        or "1.2.0"
-    credits:SetText(string.format("v%s Mainline\nby Mentiuszen", version))
+        or "1.0.0"
+    credits:SetText(string.format("v%s Release\nby Mentiuszen", version))
     
-    -- Page Containers
     local pageContainer = CreateFrame("Frame", nil, f)
     pageContainer:SetSize(610, 440)
     pageContainer:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 10, -10)
@@ -726,14 +696,15 @@ function TAT:CreateMainFrame()
     f.settingsPage:Hide()
 end
 
--- Slash commands
-SLASH_TAT1 = "/tat"
-SlashCmdList["TAT"] = function(msg)
+SLASH_WQAT1 = "/wqat"
+SLASH_WQAT2 = "/tat"
+SLASH_WQAT3 = "/wq"
+SlashCmdList["WQAT"] = function(msg)
     local cmd = string.lower(strtrim(msg or ""))
     if cmd == "scan" then
-        TAT:RunScan(true)
-        DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[TurboAchievementTracker]:|r Manual scan completed.")
+        WQAT:RunScan(true)
+        DEFAULT_CHAT_FRAME:AddMessage("|cff00ff00[World Quest Achievement Tracker]:|r Manual scan completed.")
     else
-        TAT:ToggleUI()
+        WQAT:ToggleUI()
     end
 end

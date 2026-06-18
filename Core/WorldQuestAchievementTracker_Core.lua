@@ -1,30 +1,29 @@
-local addonName, TAT = ...
-TAT.zoneMapIDs = {}
-TAT.criteriaLookup = {}
-TAT.scannedNeededQuests = {}
+local addonName, WQAT = ...
+WQAT.zoneMapIDs = {}
+WQAT.criteriaLookup = {}
+WQAT.scannedNeededQuests = {}
 
 local eventFrame = CreateFrame("Frame")
 
--- Parent Map IDs mapped to Expansion Names
 local parentToExpansion = {
     -- Legion
-    [619] = "Legion",     -- Broken Isles (Continent)
-    [905] = "Legion",     -- Argus (Continent)
-    [627] = "Legion",     -- Dalaran (Broken Isles)
+    [619] = "Legion",     -- Broken Isles
+    [905] = "Legion",     -- Argus
+    [627] = "Legion",     -- Dalaran
     [630] = "Legion",     -- Azsuna
     [634] = "Legion",     -- Stormheim
     [641] = "Legion",     -- Val'sharah
     [646] = "Legion",     -- Broken Shore
     [650] = "Legion",     -- Highmountain
     [680] = "Legion",     -- Suramar
-    [790] = "Legion",     -- Eye of Azshara (Broken Isles)
-    [830] = "Legion",     -- Krokuun (Argus)
-    [882] = "Legion",     -- Mac'Aree / Eredath (Argus)
-    [885] = "Legion",     -- Antoran Wastes (Argus)
+    [790] = "Legion",     -- Eye of Azshara
+    [830] = "Legion",     -- Krokuun
+    [882] = "Legion",     -- Mac'Aree / Eredath
+    [885] = "Legion",     -- Antoran Wastes
 
-    -- BfA (Battle for Azeroth)
-    [875] = "BfA",        -- Zandalar (Continent)
-    [876] = "BfA",        -- Kul Tiras (Continent)
+    -- Battle for Azeroth
+    [875] = "BfA",        -- Zandalar
+    [876] = "BfA",        -- Kul Tiras
     [1309] = "BfA",       -- Darkshore
     [1244] = "BfA",       -- Arathi Highlands
     [895] = "BfA",        -- Tiragarde Sound
@@ -37,11 +36,11 @@ local parentToExpansion = {
     [1165] = "BfA",       -- Dazar'alor
     [1355] = "BfA",       -- Nazjatar
     [1462] = "BfA",       -- Mechagon Island
-    [1527] = "BfA",       -- Uldum (N'Zoth Assault)
-    [1530] = "BfA",       -- Vale of Eternal Blossoms (N'Zoth Assault)
+    [1527] = "BfA",       -- Uldum
+    [1530] = "BfA",       -- Vale of Eternal Blossoms
 
     -- Shadowlands
-    [1550] = "Shadowlands", -- The Shadowlands (Continent)
+    [1550] = "Shadowlands", -- The Shadowlands
     [1670] = "Shadowlands", -- Oribos
     [1533] = "Shadowlands", -- Bastion
     [1536] = "Shadowlands", -- Maldraxxus
@@ -52,7 +51,7 @@ local parentToExpansion = {
     [1970] = "Shadowlands", -- Zereth Mortis
 
     -- Dragonflight
-    [1978] = "Dragonflight", -- Dragon Isles (Continent)
+    [1978] = "Dragonflight", -- Dragon Isles
     [2022] = "Dragonflight", -- The Waking Shores
     [2023] = "Dragonflight", -- Ohn'ahran Plains
     [2024] = "Dragonflight", -- The Azure Span
@@ -63,9 +62,9 @@ local parentToExpansion = {
     [2200] = "Dragonflight", -- Emerald Dream
 
     -- The War Within
-    [2274] = "The War Within", -- Khaz Algar (Continent)
+    [2274] = "The War Within", -- Khaz Algar
     [2248] = "The War Within", -- Isle of Dorn
-    [2214] = "The War Within", -- The Ringing Deeps
+    [2214] = "The War Within", -- The Ringing Reeps
     [2215] = "The War Within", -- Hallowfall
     [2255] = "The War Within", -- Azj-Kahet
     [2346] = "The War Within", -- Undermine
@@ -84,7 +83,6 @@ local parentToExpansion = {
 
 local mapExpansionCache = {}
 
--- Recursive helper to resolve expansion of a map ID (cached)
 local function GetMapExpansion(mapID)
     if mapExpansionCache[mapID] then
         return mapExpansionCache[mapID]
@@ -106,41 +104,32 @@ local function GetMapExpansion(mapID)
     return "Other"
 end
 
--- Builds a cache of all Zone map IDs in the client
-function TAT:BuildMapCache()
-    wipe(TAT.zoneMapIDs)
+function WQAT:BuildMapCache()
+    wipe(WQAT.zoneMapIDs)
     for i = 1, 3500 do
         local mapInfo = C_Map.GetMapInfo(i)
         if mapInfo and (mapInfo.mapType == Enum.UIMapType.Zone or mapInfo.mapType == Enum.UIMapType.Orphan) then
-            table.insert(TAT.zoneMapIDs, i)
+            table.insert(WQAT.zoneMapIDs, i)
         end
     end
 end
 
--- Case-insensitive trimmed exact match
 local function IsMatch(wqTitle, criteriaName)
-    local wq = strtrim(wqTitle:lower())
-    local crit = strtrim(criteriaName:lower())
-    return wq == crit
+    return strtrim(wqTitle:lower()) == strtrim(criteriaName:lower())
 end
 
--- Recursive achievement scanner to extract leaf criteria strings
 local function ScanAchievement(achievementID, criteriaList)
     local id, name, _, completed, _, _, _, _, _, _, _, _, wasEarnedByMe = GetAchievementInfo(achievementID)
-    if not id then return end
-    if completed and wasEarnedByMe then return end -- Skip completed achievements
+    if not id or (completed and wasEarnedByMe) then return end
 
-    -- Blacklist verification
-    if TAT.db and TAT.db.blacklist then
-        -- 1. Check direct ID blacklist
-        if TAT.db.blacklist.achievementIDs and TAT.db.blacklist.achievementIDs[achievementID] then
+    if WQAT.db and WQAT.db.blacklist then
+        if WQAT.db.blacklist.achievementIDs and WQAT.db.blacklist.achievementIDs[achievementID] then
             return
         end
         
-        -- 2. Check Name substring blacklist
-        if name and TAT.db.blacklist.achievementNames then
+        if name and WQAT.db.blacklist.achievementNames then
             local nameLower = name:lower()
-            for pattern, enabled in pairs(TAT.db.blacklist.achievementNames) do
+            for pattern, enabled in pairs(WQAT.db.blacklist.achievementNames) do
                 if enabled and string.find(nameLower, pattern, 1, true) then
                     return
                 end
@@ -152,7 +141,6 @@ local function ScanAchievement(achievementID, criteriaList)
     for i = 1, numCriteria do
         local criteriaString, criteriaType, criteriaCompleted, _, _, _, _, assetID = GetAchievementCriteriaInfo(achievementID, i)
         
-        -- Check if criterion is a sub-achievement (meta-achievement case, type 8)
         local isSubAchievement = false
         if criteriaType == 8 and assetID and assetID > 0 then
             local subId, subName, _, subCompleted, _, _, _, _, _, _, _, _, subEarned = GetAchievementInfo(assetID)
@@ -184,27 +172,24 @@ local function ScanAchievement(achievementID, criteriaList)
     end
 end
 
--- Helper to check if a category or its parents belong to blacklisted categories (e.g. PVP Battlegrounds, Dungeons & Raids)
 local function IsExcludedCategory(catID)
-    if not TAT.db or not TAT.db.blacklist or not TAT.db.blacklist.categories then
+    if not WQAT.db or not WQAT.db.blacklist or not WQAT.db.blacklist.categories then
         return false
     end
     
     local name, parentID = GetCategoryInfo(catID)
     if not name then return false end
     
-    -- Check if the category itself is blacklisted
-    if TAT.db.blacklist.categories[name:lower()] then
+    if WQAT.db.blacklist.categories[name:lower()] then
         return true
     end
     
-    -- Check parent hierarchy up to the root
     local currentID = parentID
     for i = 1, 10 do
         if not currentID or currentID == -1 then break end
         local pName, nextParent = GetCategoryInfo(currentID)
         if pName then
-            if TAT.db.blacklist.categories[pName:lower()] then
+            if WQAT.db.blacklist.categories[pName:lower()] then
                 return true
             end
         end
@@ -214,7 +199,6 @@ local function IsExcludedCategory(catID)
     return false
 end
 
--- Helper to determine if an achievement is categorized under a target category (e.g. "professions", "player vs. player", "pet battles")
 local function IsAchievementInCategory(achievementID, targetCategoryLower)
     local catID = GetAchievementCategory(achievementID)
     if not catID then return false end
@@ -238,20 +222,18 @@ local function IsAchievementInCategory(achievementID, targetCategoryLower)
     return false
 end
 
-TAT.criteriaLookupBuilt = false
+WQAT.criteriaLookupBuilt = false
 
--- Builds the global criteria lookup table from all incomplete achievements
--- Returns true if database is loaded, false if it is not ready yet
-function TAT:RebuildCriteriaLookup(force)
-    if not force and TAT.criteriaLookupBuilt then
+function WQAT:RebuildCriteriaLookup(force)
+    if not force and WQAT.criteriaLookupBuilt then
         return true
     end
 
-    wipe(TAT.criteriaLookup)
+    wipe(WQAT.criteriaLookup)
     
     local categories = GetCategoryList()
     if not categories or #categories == 0 then
-        TAT.lastScanStats = { achievements = 0, criteria = 0 }
+        WQAT.lastScanStats = { achievements = 0, criteria = 0 }
         return false
     end
     
@@ -259,80 +241,73 @@ function TAT:RebuildCriteriaLookup(force)
     local scannedAchievementsCount = 0
     for _, catID in ipairs(categories) do
         if not IsExcludedCategory(catID) then
-            local name, parentID = GetCategoryInfo(catID)
             local total = GetCategoryNumAchievements(catID)
             totalAchievementsInGame = totalAchievementsInGame + total
             for i = 1, total do
                 local ok, id, achName, _, achCompleted, _, _, _, _, _, _, _, _, wasEarnedByMe = pcall(GetAchievementInfo, catID, i)
                 if ok and id and not (achCompleted and wasEarnedByMe) then
                     scannedAchievementsCount = scannedAchievementsCount + 1
-                    ScanAchievement(id, TAT.criteriaLookup)
+                    ScanAchievement(id, WQAT.criteriaLookup)
                 end
             end
         end
     end
     
-    -- If no achievements are loaded in the game database yet, it is not ready
     if totalAchievementsInGame == 0 then
-        TAT.lastScanStats = { achievements = 0, criteria = 0 }
+        WQAT.lastScanStats = { achievements = 0, criteria = 0 }
         return false
     end
     
     local criteriaCount = 0
-    for _, infoList in pairs(TAT.criteriaLookup) do
+    for _, infoList in pairs(WQAT.criteriaLookup) do
         criteriaCount = criteriaCount + #infoList
     end
     
-    TAT.lastScanStats = {
+    WQAT.lastScanStats = {
         achievements = scannedAchievementsCount,
         criteria = criteriaCount
     }
     
-    -- If we found achievements, but the number of criteria is suspiciously small,
-    -- it means the achievement criteria strings haven't loaded from the server yet.
     if scannedAchievementsCount > 100 and criteriaCount < 200 then
-        TAT.criteriaLookupBuilt = false
+        WQAT.criteriaLookupBuilt = false
         return false
     end
     
-    TAT.criteriaLookupBuilt = true
+    WQAT.criteriaLookupBuilt = true
     return true
 end
 
 local hasEnteredWorld = false
 local hasPrintedReminder = false
 
--- Main scanner execution
-function TAT:RunScan(force)
-    if not TAT.db then return end
+function WQAT:RunScan(force)
+    if not WQAT.db then return end
     
-    -- Ensure map cache is prepared
-    if #TAT.zoneMapIDs == 0 then
-        TAT:BuildMapCache()
+    if #WQAT.zoneMapIDs == 0 then
+        WQAT:BuildMapCache()
     end
     
-    -- Rebuild criteria lookup of incomplete achievements if forced or not built yet
-    local success = TAT:RebuildCriteriaLookup(force)
+    local success = WQAT:RebuildCriteriaLookup(force)
     if not success then
-        if not TAT.achRetryCount then TAT.achRetryCount = 0 end
-        if TAT.achRetryCount < 8 then
-            TAT.achRetryCount = TAT.achRetryCount + 1
-            if TAT.achRetryTimer then
-                TAT.achRetryTimer:Cancel()
+        if not WQAT.achRetryCount then WQAT.achRetryCount = 0 end
+        if WQAT.achRetryCount < 8 then
+            WQAT.achRetryCount = WQAT.achRetryCount + 1
+            if WQAT.achRetryTimer then
+                WQAT.achRetryTimer:Cancel()
             end
-            TAT.achRetryTimer = C_Timer.NewTimer(2.0, function()
-                TAT:RunScan()
+            WQAT.achRetryTimer = C_Timer.NewTimer(2.0, function()
+                WQAT:RunScan()
             end)
         end
         return
     else
-        TAT.achRetryCount = 0
+        WQAT.achRetryCount = 0
         if hasEnteredWorld then
-            TAT.initialScanDone = true
+            WQAT.initialScanDone = true
         end
     end
 
-    wipe(TAT.scannedNeededQuests)
+    wipe(WQAT.scannedNeededQuests)
     
     local needsRetry = false
     local processedQuests = {}
@@ -341,9 +316,8 @@ function TAT:RunScan(force)
 
     local getQuests = C_TaskQuest.GetQuestsOnMap or C_TaskQuest.GetQuestsForPlayerByMapID
 
-    -- Map list to scan: Zone cache + current zone
     local mapsToScan = {}
-    for _, mapID in ipairs(TAT.zoneMapIDs) do
+    for _, mapID in ipairs(WQAT.zoneMapIDs) do
         mapsToScan[mapID] = true
     end
     local currentMap = C_Map.GetBestMapForUnit("player")
@@ -354,7 +328,6 @@ function TAT:RunScan(force)
     for mapID in pairs(mapsToScan) do
         local expansion = GetMapExpansion(mapID)
         
-        -- Scan all expansions matching World Quests (skip legacy "Other" zones)
         if expansion ~= "Other" then
             mapsScannedCount = mapsScannedCount + 1
             local quests = getQuests(mapID)
@@ -370,7 +343,6 @@ function TAT:RunScan(force)
                             C_QuestLog.RequestLoadQuestByID(questID)
                             needsRetry = true
                         else
-                            -- Query quest types
                             local tagInfo = C_QuestLog.GetQuestTagInfo(questID)
                             local wqType = tagInfo and tagInfo.worldQuestType
                             local QTT = Enum and Enum.QuestTagType
@@ -381,8 +353,7 @@ function TAT:RunScan(force)
                             local matchedInfos = {}
                             local addedAchievements = {}
                             
-                            -- 1. Direct Quest ID Match (O(1))
-                            local idMatches = TAT.criteriaLookup[questID]
+                            local idMatches = WQAT.criteriaLookup[questID]
                             if idMatches then
                                 for _, info in ipairs(idMatches) do
                                     if not addedAchievements[info.achievementID] then
@@ -392,34 +363,26 @@ function TAT:RunScan(force)
                                 end
                             end
                             
-                            -- 2. Fallback Name Match (for non-Quest criteria, key is a string)
-                            -- Cross-validate WQ type against achievement category to prevent
-                            -- impossible matches (e.g. pet battle WQ matching a non-pet-battle achievement)
-                            for key, infoList in pairs(TAT.criteriaLookup) do
+                            for key, infoList in pairs(WQAT.criteriaLookup) do
                                 if type(key) == "string" then
                                     for _, info in ipairs(infoList) do
                                         if not addedAchievements[info.achievementID] then
                                             if IsMatch(title, info.criteriaString) then
-                                                -- Cross-validation: WQ type must be compatible with achievement category
                                                 local isCompatible = true
                                                 
                                                 local achIsPetBattle = IsAchievementInCategory(info.achievementID, "pet battles")
                                                 local achIsPvP = IsAchievementInCategory(info.achievementID, "player vs. player")
                                                 local achIsProfession = IsAchievementInCategory(info.achievementID, "professions")
                                                 
-                                                -- If the WQ is a pet battle, only match pet battle achievements
                                                 if isPetBattle and not achIsPetBattle then
                                                     isCompatible = false
                                                 end
-                                                -- If the WQ is PvP, only match PvP achievements
                                                 if isPvP and not achIsPvP then
                                                     isCompatible = false
                                                 end
-                                                -- If the WQ is a profession quest, only match profession achievements
                                                 if isProfession and not achIsProfession then
                                                     isCompatible = false
                                                 end
-                                                -- Reverse: if the achievement IS a pet battle achievement, only match pet battle WQs
                                                 if achIsPetBattle and not isPetBattle then
                                                     isCompatible = false
                                                 end
@@ -434,13 +397,11 @@ function TAT:RunScan(force)
                                 end
                             end
                             
-                            -- Process all matched criteria for this quest
                             for _, critInfo in ipairs(matchedInfos) do
                                 local timeLeft = C_TaskQuest.GetQuestTimeLeftMinutes(questID) or 0
                                 local mapInfo = C_Map.GetMapInfo(mapID)
                                 local zoneName = mapInfo and mapInfo.name or "Unknown Zone"
                                 
-                                -- Determine category flags based on quest tags and/or achievement categories
                                 local finalIsPetBattle = isPetBattle or IsAchievementInCategory(critInfo.achievementID, "pet battles")
                                 local finalIsPvP = isPvP or IsAchievementInCategory(critInfo.achievementID, "player vs. player")
                                 local finalIsProfession = isProfession or IsAchievementInCategory(critInfo.achievementID, "professions")
@@ -463,7 +424,7 @@ function TAT:RunScan(force)
                                     expansion = expansion
                                 }
                                 
-                                table.insert(TAT.scannedNeededQuests, questData)
+                                table.insert(WQAT.scannedNeededQuests, questData)
                             end
                         end
                     end
@@ -472,58 +433,54 @@ function TAT:RunScan(force)
         end
     end
 
-    -- Trigger UI updates
-    if TAT.UpdateUI then
-        TAT:UpdateUI()
+    if WQAT.UpdateUI then
+        WQAT:UpdateUI()
     end
 
-    -- Print reminder on the first successful scan of the session (after player fully enters world)
-    if hasEnteredWorld and TAT.db.showLoginReminder and not hasPrintedReminder and TAT.criteriaLookupBuilt then
+    if hasEnteredWorld and WQAT.db.showLoginReminder and not hasPrintedReminder and WQAT.criteriaLookupBuilt then
         hasPrintedReminder = true
-        local filteredQuests = TAT:GetFilteredQuests()
+        local filteredQuests = WQAT:GetFilteredQuests()
         local neededCount = #filteredQuests
-        local colorPrefix = "|cff00ff00[TurboAchievementTracker]:|r "
+        local colorPrefix = "|cff00ff00[World Quest Achievement Tracker]:|r "
         local msg
         if neededCount > 0 then
-            msg = string.format("%sYou have |cffff0000%d|r needed World Quests available right now! (Scanned %d achievements, %d criteria, %d active WQs) Type /tat to open the window.", colorPrefix, neededCount, TAT.lastScanStats.achievements, TAT.lastScanStats.criteria, questsFoundCount)
+            msg = string.format("%sYou have |cffff0000%d|r needed World Quests available! (Scanned %d achievements, %d criteria, %d active WQs) Type /wqat to open window.", colorPrefix, neededCount, WQAT.lastScanStats.achievements, WQAT.lastScanStats.criteria, questsFoundCount)
         else
-            msg = string.format("%sScan completed! No needed World Quests are active right now. (Scanned %d achievements, %d criteria, %d active WQs)", colorPrefix, TAT.lastScanStats.achievements, TAT.lastScanStats.criteria, questsFoundCount)
+            msg = string.format("%sScan completed. No needed World Quests are active. (Scanned %d achievements, %d criteria, %d active WQs)", colorPrefix, WQAT.lastScanStats.achievements, WQAT.lastScanStats.criteria, questsFoundCount)
         end
         DEFAULT_CHAT_FRAME:AddMessage(msg)
     end
 
-    -- Handle retry if any quest titles needed to be loaded from database
     if needsRetry then
-        if not TAT.titleRetryCount then TAT.titleRetryCount = 0 end
-        if TAT.titleRetryCount < 5 then
-            TAT.titleRetryCount = TAT.titleRetryCount + 1
-            if TAT.retryTimer then
-                TAT.retryTimer:Cancel()
+        if not WQAT.titleRetryCount then WQAT.titleRetryCount = 0 end
+        if WQAT.titleRetryCount < 5 then
+            WQAT.titleRetryCount = WQAT.titleRetryCount + 1
+            if WQAT.retryTimer then
+                WQAT.retryTimer:Cancel()
             end
-            TAT.retryTimer = C_Timer.NewTimer(1.5, function()
-                TAT:RunScan()
+            WQAT.retryTimer = C_Timer.NewTimer(1.5, function()
+                WQAT:RunScan()
             end)
         end
     else
-        TAT.titleRetryCount = 0
+        WQAT.titleRetryCount = 0
     end
 end
 
--- Helper to filter quests in-memory without rescanning
-function TAT:GetFilteredQuests()
+function WQAT:GetFilteredQuests()
     local filtered = {}
-    if not TAT.scannedNeededQuests then return filtered end
-    for _, q in ipairs(TAT.scannedNeededQuests) do
+    if not WQAT.scannedNeededQuests then return filtered end
+    for _, q in ipairs(WQAT.scannedNeededQuests) do
         local passType = false
-        if TAT.db.filterPetBattle and q.isPetBattle then passType = true end
-        if TAT.db.filterPvP and q.isPvP then passType = true end
-        if TAT.db.filterProfession and q.isProfession then passType = true end
-        if TAT.db.filterNormal and q.isNormal then passType = true end
+        if WQAT.db.filterPetBattle and q.isPetBattle then passType = true end
+        if WQAT.db.filterPvP and q.isPvP then passType = true end
+        if WQAT.db.filterProfession and q.isProfession then passType = true end
+        if WQAT.db.filterNormal and q.isNormal then passType = true end
         
         local passExp = false
         local expansion = q.mapID and GetMapExpansion(q.mapID) or "Other"
         local filterKey = expansion:gsub("%s+", "")
-        if expansion == "Other" or TAT.db.filterExpansions[filterKey] then
+        if expansion == "Other" or WQAT.db.filterExpansions[filterKey] then
             passExp = true
         end
         
@@ -534,12 +491,10 @@ function TAT:GetFilteredQuests()
     return filtered
 end
 
--- Hook database loaded
-function TAT:OnDatabaseLoaded()
-    TAT:RunScan()
+function WQAT:OnDatabaseLoaded()
+    WQAT:RunScan()
 end
 
--- Main event tracking frame setup
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("RECEIVED_ACHIEVEMENT_LIST")
 eventFrame:RegisterEvent("QUEST_TURNED_IN")
@@ -547,41 +502,39 @@ eventFrame:RegisterEvent("QUEST_TURNED_IN")
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         hasEnteredWorld = true
-        if not TAT.initialScanDone then
-            if TAT.loginTimer then
-                TAT.loginTimer:Cancel()
+        if not WQAT.initialScanDone then
+            if WQAT.loginTimer then
+                WQAT.loginTimer:Cancel()
             end
-            TAT.loginTimer = C_Timer.NewTimer(1.5, function()
-                TAT:RunScan()
+            WQAT.loginTimer = C_Timer.NewTimer(1.5, function()
+                WQAT:RunScan()
             end)
         end
     elseif event == "RECEIVED_ACHIEVEMENT_LIST" then
-        if not TAT.initialScanDone then
-            -- Cancel any pending achievement retry timers
-            if TAT.achRetryTimer then
-                TAT.achRetryTimer:Cancel()
-                TAT.achRetryTimer = nil
+        if not WQAT.initialScanDone then
+            if WQAT.achRetryTimer then
+                WQAT.achRetryTimer:Cancel()
+                WQAT.achRetryTimer = nil
             end
-            if TAT.loginTimer then
-                TAT.loginTimer:Cancel()
+            if WQAT.loginTimer then
+                WQAT.loginTimer:Cancel()
             end
-            TAT.loginTimer = C_Timer.NewTimer(1.5, function()
-                TAT:RunScan(true)
+            WQAT.loginTimer = C_Timer.NewTimer(1.5, function()
+                WQAT:RunScan(true)
             end)
         end
     elseif event == "QUEST_TURNED_IN" then
-        -- Lightweight refresh: remove the completed quest without a full rescan
         local questID = ...
-        if questID and TAT.scannedNeededQuests then
+        if questID and WQAT.scannedNeededQuests then
             local removed = false
-            for i = #TAT.scannedNeededQuests, 1, -1 do
-                if TAT.scannedNeededQuests[i].questID == questID then
-                    table.remove(TAT.scannedNeededQuests, i)
+            for i = #WQAT.scannedNeededQuests, 1, -1 do
+                if WQAT.scannedNeededQuests[i].questID == questID then
+                    table.remove(WQAT.scannedNeededQuests, i)
                     removed = true
                 end
             end
-            if removed and TAT.UpdateUI then
-                TAT:UpdateUI()
+            if removed and WQAT.UpdateUI then
+                WQAT:UpdateUI()
             end
         end
     end

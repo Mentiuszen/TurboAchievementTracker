@@ -1,5 +1,5 @@
-local addonName, TAT = ...
-TAT.db = {}
+local addonName, WQAT = ...
+WQAT.db = {}
 
 local defaultSettings = {
     showLoginReminder = true,
@@ -67,7 +67,6 @@ local defaultSettings = {
     }
 }
 
--- db copy helper
 local function CopyDefaults(src, dest)
     for k, v in pairs(src) do
         if type(v) == "table" then
@@ -83,24 +82,26 @@ local function CopyDefaults(src, dest)
     end
 end
 
--- Initialize DB
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, loadedAddonName)
     if loadedAddonName ~= addonName then return end
     
-    if not _G.TurboAchievementTracker_DB then
-        _G.TurboAchievementTracker_DB = {}
+    if not _G.WorldQuestAchievementTracker_DB then
+        _G.WorldQuestAchievementTracker_DB = {}
     end
     
-    TAT.db = _G.TurboAchievementTracker_DB
+    -- Migrate settings from legacy TurboAchievementTracker_DB if present
+    if _G.TurboAchievementTracker_DB then
+        CopyDefaults(_G.TurboAchievementTracker_DB, _G.WorldQuestAchievementTracker_DB)
+        _G.TurboAchievementTracker_DB = nil
+    end
     
-    -- Load defaults
-    CopyDefaults(defaultSettings, TAT.db)
+    WQAT.db = _G.WorldQuestAchievementTracker_DB
+    CopyDefaults(defaultSettings, WQAT.db)
     
-    -- Broadcast that database is loaded
-    if TAT.OnDatabaseLoaded then
-        TAT:OnDatabaseLoaded()
+    if WQAT.OnDatabaseLoaded then
+        WQAT:OnDatabaseLoaded()
     end
     
     self:UnregisterEvent("ADDON_LOADED")
