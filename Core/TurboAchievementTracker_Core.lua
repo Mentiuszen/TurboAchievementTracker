@@ -17,17 +17,16 @@ local parentToExpansion = {
     [646] = "Legion",     -- Broken Shore
     [650] = "Legion",     -- Highmountain
     [680] = "Legion",     -- Suramar
-    [790] = "Legion",     -- Eye of Azshara
+    [790] = "Legion",     -- Eye of Azshara (Broken Isles)
     [830] = "Legion",     -- Krokuun (Argus)
     [882] = "Legion",     -- Mac'Aree / Eredath (Argus)
     [885] = "Legion",     -- Antoran Wastes (Argus)
-    [903] = "Legion",     -- Seat of the Triumvirate (Argus)
 
     -- BfA (Battle for Azeroth)
     [875] = "BfA",        -- Zandalar (Continent)
     [876] = "BfA",        -- Kul Tiras (Continent)
-    [86] = "BfA",         -- Darkshore
-    [947] = "BfA",        -- Arathi Highlands
+    [1309] = "BfA",       -- Darkshore
+    [1244] = "BfA",       -- Arathi Highlands
     [895] = "BfA",        -- Tiragarde Sound
     [896] = "BfA",        -- Drustvar
     [942] = "BfA",        -- Stormsong Valley
@@ -51,7 +50,6 @@ local parentToExpansion = {
     [1543] = "Shadowlands", -- The Maw
     [1961] = "Shadowlands", -- Korthia
     [1970] = "Shadowlands", -- Zereth Mortis
-    [1971] = "Shadowlands", -- Zereth Mortis (secondary ID)
 
     -- Dragonflight
     [1978] = "Dragonflight", -- Dragon Isles (Continent)
@@ -59,12 +57,9 @@ local parentToExpansion = {
     [2023] = "Dragonflight", -- Ohn'ahran Plains
     [2024] = "Dragonflight", -- The Azure Span
     [2025] = "Dragonflight", -- Thaldraszus
-    [2112] = "Dragonflight", -- The Forbidden Reach
-    [2118] = "Dragonflight", -- Valdrakken
+    [2112] = "Dragonflight", -- Valdrakken
     [2133] = "Dragonflight", -- Zaralek Cavern
-    [2151] = "Dragonflight", -- The Forbidden Reach (alternative)
-    [2175] = "Dragonflight", -- Zaralek Cavern (alternative)
-    [2184] = "Dragonflight", -- Zaralek Cavern (alternative)
+    [2151] = "Dragonflight", -- The Forbidden Reach
     [2200] = "Dragonflight", -- Emerald Dream
 
     -- The War Within
@@ -74,13 +69,14 @@ local parentToExpansion = {
     [2215] = "The War Within", -- Hallowfall
     [2255] = "The War Within", -- Azj-Kahet
     [2346] = "The War Within", -- Undermine
-    [2352] = "The War Within", -- Siren Isle
+    [2369] = "The War Within", -- Siren Isle
+    [2371] = "The War Within", -- K'aresh
 
     -- Midnight
-    [2393] = "Midnight",     -- Eversong Woods (Revamped)
-    [2395] = "Midnight",     -- Silvermoon / Quel'Thalas
-    [2404] = "Midnight",     -- Silvermoon City (Hub)
-    [2405] = "Midnight",     -- Voidstorm (contains Slayer's Rise)
+    [2537] = "Midnight",     -- Quel'Thalas
+    [2393] = "Midnight",     -- Silvermoon City
+    [2395] = "Midnight",     -- Eversong Woods
+    [2405] = "Midnight",     -- Voidstorm
     [2413] = "Midnight",     -- Harandar
     [2424] = "Midnight",     -- Isle of Quel'Danas
     [2437] = "Midnight",     -- Zul'Aman
@@ -543,9 +539,10 @@ function TAT:OnDatabaseLoaded()
     TAT:RunScan()
 end
 
--- Main event tracking frame setup (only for initial login scan)
+-- Main event tracking frame setup
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("RECEIVED_ACHIEVEMENT_LIST")
+eventFrame:RegisterEvent("QUEST_TURNED_IN")
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
@@ -571,6 +568,21 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             TAT.loginTimer = C_Timer.NewTimer(1.5, function()
                 TAT:RunScan(true)
             end)
+        end
+    elseif event == "QUEST_TURNED_IN" then
+        -- Lightweight refresh: remove the completed quest without a full rescan
+        local questID = ...
+        if questID and TAT.scannedNeededQuests then
+            local removed = false
+            for i = #TAT.scannedNeededQuests, 1, -1 do
+                if TAT.scannedNeededQuests[i].questID == questID then
+                    table.remove(TAT.scannedNeededQuests, i)
+                    removed = true
+                end
+            end
+            if removed and TAT.UpdateUI then
+                TAT:UpdateUI()
+            end
         end
     end
 end)

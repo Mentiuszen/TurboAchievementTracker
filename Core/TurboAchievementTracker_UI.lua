@@ -261,6 +261,9 @@ local function UpdateAchievementsPage()
             local trackBtn = mQoL_Styles.CreateCustomButton(subRow, "Track", 75, 22)
             trackBtn:SetScript("OnClick", function()
                 C_SuperTrack.SetSuperTrackedQuestID(q.questID)
+                if AddTrackedAchievement then
+                    AddTrackedAchievement(q.achievementID)
+                end
                 UIFrameFadeOut(mainFrame, 0.15, 1, 0)
                 C_Timer.After(0.15, function()
                     mainFrame:Hide()
